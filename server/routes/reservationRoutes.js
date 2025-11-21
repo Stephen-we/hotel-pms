@@ -1,6 +1,7 @@
 import express from "express";
 import Reservation from "../models/Reservation.js";
 import Room from "../models/Room.js";
+import Guest from "../models/Guest.js";
 
 const router = express.Router();
 
@@ -31,7 +32,18 @@ router.post("/", async (req, res) => {
     }
 
     const reservation = await Reservation.create(req.body);
-    res.status(201).json(reservation);
+    
+    // If status is CHECKED_IN, update room status
+    if (req.body.status === 'CHECKED_IN') {
+      await Room.findByIdAndUpdate(room, { status: 'OCCUPIED' });
+    }
+
+    // Populate the response
+    const populatedReservation = await Reservation.findById(reservation._id)
+      .populate('guest')
+      .populate('room');
+
+    res.status(201).json(populatedReservation);
   } catch (err) {
     console.error("Error creating reservation:", err);
     res.status(500).json({ message: "Failed to create reservation" });
@@ -70,7 +82,11 @@ router.post("/:id/checkin", async (req, res) => {
     reservation.room.status = "OCCUPIED";
     await reservation.room.save();
 
-    res.json(reservation);
+    const populatedReservation = await Reservation.findById(reservation._id)
+      .populate('guest')
+      .populate('room');
+
+    res.json(populatedReservation);
   } catch (err) {
     console.error("Error checking in:", err);
     res.status(500).json({ message: "Failed to check-in" });
@@ -91,7 +107,11 @@ router.post("/:id/checkout", async (req, res) => {
     reservation.room.status = "VACANT_DIRTY"; // then HK will clean
     await reservation.room.save();
 
-    res.json(reservation);
+    const populatedReservation = await Reservation.findById(reservation._id)
+      .populate('guest')
+      .populate('room');
+
+    res.json(populatedReservation);
   } catch (err) {
     console.error("Error checking out:", err);
     res.status(500).json({ message: "Failed to check-out" });

@@ -6,6 +6,11 @@ import mongoose from "mongoose";
 import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 dotenv.config();
 
@@ -33,6 +38,11 @@ app.get("/", (req, res) => {
 app.use("/api/rooms", roomRoutes);
 app.use("/api/guests", guestRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

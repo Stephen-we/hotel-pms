@@ -1,42 +1,117 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import StatCard from "../components/StatCard";
 import ProgressBar from "../components/ProgressBar";
+import api from "../services/api";
 
 export default function Dashboard() {
-  // Later these will come from backend (Mongo)
-  const today = {
-    date: new Date().toLocaleDateString(),
-    occupancy: 78,
-    roomsTotal: 120,
-    roomsOccupied: 94,
-    arrivals: 32,
-    departures: 28,
-    inHouse: 89,
-    revenue: "₹ 3,45,800",
-    avgRate: "₹ 3,880",
-    posRevenue: "₹ 96,400",
+  const [dashboardData, setDashboardData] = useState({
+    rooms: [],
+    reservations: [],
+    loading: true
+  });
+
+  // Fetch live data
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [roomsRes, reservationsRes] = await Promise.all([
+        api.get('/rooms'),
+        api.get('/reservations')
+      ]);
+
+      const rooms = roomsRes.data;
+      const reservations = reservationsRes.data;
+
+      // Calculate metrics
+      const totalRooms = rooms.length;
+      const occupiedRooms = rooms.filter(r => r.status === 'OCCUPIED').length;
+      const vacantCleanRooms = rooms.filter(r => r.status === 'VACANT_CLEAN').length;
+      const vacantDirtyRooms = rooms.filter(r => r.status === 'VACANT_DIRTY').length;
+      
+      const occupancyRate = Math.round((occupiedRooms / totalRooms) * 100);
+      
+      const today = new Date().toISOString().split('T')[0];
+      const todayArrivals = reservations.filter(r => 
+        r.checkInDate.split('T')[0] === today && r.status === 'BOOKED'
+      ).length;
+      const todayDepartures = reservations.filter(r => 
+        r.checkOutDate.split('T')[0] === today && r.status === 'CHECKED_IN'
+      ).length;
+      
+      const inHouseGuests = reservations.filter(r => 
+        r.status === 'CHECKED_IN'
+      ).length;
+
+      // Calculate revenue (simplified - in real app, this would come from transactions)
+      const totalRevenue = reservations
+        .filter(r => r.status === 'CHECKED_OUT')
+        .reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+      
+      const todaysRevenue = reservations
+        .filter(r => r.checkOutDate.split('T')[0] === today)
+        .reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+
+      setDashboardData({
+        rooms,
+        reservations,
+        metrics: {
+          date: new Date().toLocaleDateString(),
+          occupancy: occupancyRate,
+          roomsTotal: totalRooms,
+          roomsOccupied: occupiedRooms,
+          roomsVacantClean: vacantCleanRooms,
+          roomsVacantDirty: vacantDirtyRooms,
+          arrivals: todayArrivals,
+          departures: todayDepartures,
+          inHouse: inHouseGuests,
+          revenue: `₹ ${todaysRevenue.toLocaleString()}`,
+          totalRevenue: `₹ ${totalRevenue.toLocaleString()}`,
+          avgRate: occupiedRooms > 0 ? `₹ ${Math.round(totalRevenue / occupiedRooms)}` : '₹ 0',
+          posRevenue: '₹ 0' // Would come from POS system
+        },
+        loading: false
+      });
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setDashboardData(prev => ({ ...prev, loading: false }));
+    }
   };
 
+  const { metrics, rooms, reservations, loading } = dashboardData;
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-8 text-slate-400">Loading dashboard data...</div>
+      </div>
+    );
+  }
+
   const roomTypes = [
-    { name: "Deluxe Room", occ: 82 },
-    { name: "Superior Room", occ: 76 },
-    { name: "Suite", occ: 68 },
-    { name: "Family Room", occ: 73 },
+    { name: "Deluxe Room", occ: Math.round((rooms.filter(r => r.type === 'DELUXE' && r.status === 'OCCUPIED').length / rooms.filter(r => r.type === 'DELUXE').length) * 100) || 0 },
+    { name: "Superior Room", occ: Math.round((rooms.filter(r => r.type === 'SUPERIOR' && r.status === 'OCCUPIED').length / rooms.filter(r => r.type === 'SUPERIOR').length) * 100) || 0 },
+    { name: "Suite", occ: Math.round((rooms.filter(r => r.type === 'SUITE' && r.status === 'OCCUPIED').length / rooms.filter(r => r.type === 'SUITE').length) * 100) || 0 },
+    { name: "Family Room", occ: Math.round((rooms.filter(r => r.type === 'FAMILY' && r.status === 'OCCUPIED').length / rooms.filter(r => r.type === 'FAMILY').length) * 100) || 0 },
   ];
 
   const housekeepingSummary = [
-    { status: "Dirty", count: 18 },
-    { status: "Clean", count: 82 },
-    { status: "Inspection", count: 12 },
-    { status: "Out of Order", count: 8 },
+    { status: "Dirty", count: rooms.filter(r => r.status === 'VACANT_DIRTY').length },
+    { status: "Clean", count: rooms.filter(r => r.status === 'VACANT_CLEAN').length },
+    { status: "Inspection", count: rooms.filter(r => r.status === 'OUT_OF_ORDER').length },
+    { status: "Out of Order", count: rooms.filter(r => r.status === 'OUT_OF_ORDER').length },
   ];
 
-  const frontDeskTimeline = [
-    { time: "09:15", label: "Check-in", detail: "Mr. Sharma • 2N • 301" },
-    { time: "10:05", label: "Room Move", detail: "Ms. Gupta • 214 → 315" },
-    { time: "11:20", label: "Early Check-out", detail: "Corporate Guest • 508" },
-    { time: "12:10", label: "Group Arrival", detail: "TechConf • 12 Rooms" },
-  ];
+  const frontDeskTimeline = reservations
+    .filter(r => r.status === 'CHECKED_IN')
+    .slice(0, 4)
+    .map(reservation => ({
+      time: new Date(reservation.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      label: "Checked-in",
+      detail: `${reservation.guest?.firstName} • Room ${reservation.room?.number}`
+    }));
 
   return (
     <div className="space-y-4">
@@ -52,10 +127,10 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3 text-sm text-slate-400">
           <div className="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/40">
-            Today: <span className="font-medium text-slate-100">{today.date}</span>
+            Today: <span className="font-medium text-slate-100">{metrics?.date}</span>
           </div>
           <div className="hidden sm:block px-3 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs">
-            Live PMS • In-House Guests: {today.inHouse}
+            Live PMS • In-House Guests: {metrics?.inHouse}
           </div>
         </div>
       </div>
@@ -64,31 +139,31 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           label="Today's Occupancy"
-          value={`${today.occupancy}%`}
-          subLabel={`${today.roomsOccupied} of ${today.roomsTotal} rooms occupied`}
-          trend="+5% vs last week"
-          trendType="up"
+          value={`${metrics?.occupancy || 0}%`}
+          subLabel={`${metrics?.roomsOccupied} of ${metrics?.roomsTotal} rooms occupied`}
+          trend={metrics?.occupancy > 70 ? "High Season" : "Moderate"}
+          trendType={metrics?.occupancy > 70 ? "up" : "neutral"}
         />
         <StatCard
-          label="Today's Room Revenue"
-          value={today.revenue}
-          subLabel={`Average room rate ${today.avgRate}`}
-          trend="+₹ 42,000 vs yesterday"
+          label="Today's Revenue"
+          value={metrics?.revenue || '₹ 0'}
+          subLabel={`Total revenue: ${metrics?.totalRevenue}`}
+          trend="Live from check-outs"
           trendType="up"
         />
         <StatCard
           label="Arrivals / Departures"
-          value={`${today.arrivals} / ${today.departures}`}
+          value={`${metrics?.arrivals || 0} / ${metrics?.departures || 0}`}
           subLabel="Expected for today"
-          trend="Moderate Day"
-          trendType="neutral"
+          trend={metrics?.arrivals > 5 ? "Busy Day" : "Quiet Day"}
+          trendType={metrics?.arrivals > 5 ? "up" : "neutral"}
         />
         <StatCard
-          label="POS & Buffet Revenue"
-          value={today.posRevenue}
-          subLabel="Restaurant • Room Service • Buffet"
-          trend="+18% vs last week"
-          trendType="up"
+          label="Available Rooms"
+          value={metrics?.roomsVacantClean || 0}
+          subLabel={`${metrics?.roomsVacantDirty || 0} rooms need cleaning`}
+          trend="Ready for check-in"
+          trendType="neutral"
         />
       </div>
 
@@ -107,7 +182,7 @@ export default function Dashboard() {
               <div className="text-xs text-slate-400">
                 Total Rooms:{" "}
                 <span className="font-medium text-slate-100">
-                  {today.roomsTotal}
+                  {metrics?.roomsTotal}
                 </span>
               </div>
             </div>
@@ -116,9 +191,9 @@ export default function Dashboard() {
               {/* Occupancy progress */}
               <div className="space-y-3">
                 <ProgressBar
-                  value={today.occupancy}
+                  value={metrics?.occupancy || 0}
                   labelLeft="Overall Occupancy"
-                  labelRight={`${today.occupancy}%`}
+                  labelRight={`${metrics?.occupancy || 0}%`}
                 />
                 {roomTypes.map((rt) => (
                   <ProgressBar
@@ -154,7 +229,7 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  * Dirty & Inspection rooms to be prioritized before 14:00.
+                  * Dirty rooms to be prioritized before 14:00.
                 </div>
               </div>
             </div>
@@ -166,20 +241,19 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold">Arrivals & Departures</h2>
               <div className="flex gap-2 text-xs">
                 <span className="px-2 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300">
-                  Arrivals: {today.arrivals}
+                  Arrivals: {metrics?.arrivals}
                 </span>
                 <span className="px-2 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300">
-                  Departures: {today.departures}
+                  Departures: {metrics?.departures}
                 </span>
               </div>
             </div>
             <p className="text-xs text-slate-400 mb-2">
-              Later we will replace this with a live table (guest name, room,
-              ETA/ETD, source, payment mode etc.).
+              Real-time data from reservation system.
             </p>
             <div className="text-xs text-slate-500">
-              • Group check-in at 12:00  
-              • Priority corporate guest to be upgraded if available  
+              • Monitor front desk for guest arrivals<br/>
+              • Prepare rooms for incoming guests
             </div>
           </div>
         </div>
@@ -188,27 +262,36 @@ export default function Dashboard() {
         <div className="space-y-4">
           <div className="bg-cardBg border border-slate-800 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold">Front Desk Activity</h2>
-              <button className="text-[11px] px-2 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10">
-                View all
+              <h2 className="text-sm font-semibold">Recent Activity</h2>
+              <button 
+                onClick={fetchDashboardData}
+                className="text-[11px] px-2 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10"
+              >
+                Refresh
               </button>
             </div>
             <div className="space-y-3 text-xs">
-              {frontDeskTimeline.map((item, idx) => (
-                <div key={idx} className="flex gap-3">
-                  <div className="pt-0.5">
-                    <div className="w-8 text-[11px] text-slate-500">
-                      {item.time}
+              {frontDeskTimeline.length > 0 ? (
+                frontDeskTimeline.map((item, idx) => (
+                  <div key={idx} className="flex gap-3">
+                    <div className="pt-0.5">
+                      <div className="w-8 text-[11px] text-slate-500">
+                        {item.time}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-200">
+                        {item.label}
+                      </div>
+                      <div className="text-slate-400">{item.detail}</div>
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-200">
-                      {item.label}
-                    </div>
-                    <div className="text-slate-400">{item.detail}</div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-slate-400 py-2">
+                  No recent activity
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -232,7 +315,7 @@ export default function Dashboard() {
               ))}
             </div>
             <p className="text-[11px] text-slate-500">
-              Later we will connect these buttons to actual forms & APIs.
+              Quick access to common front desk operations.
             </p>
           </div>
         </div>
