@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import InvoiceModal from '../components/InvoiceModal';
 
 export default function POS() {
   const [activeTab, setActiveTab] = useState('menu');
@@ -8,15 +7,13 @@ export default function POS() {
   const [orders, setOrders] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showInvoice, setShowInvoice] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
   
   // Current order state
   const [currentOrder, setCurrentOrder] = useState({
     type: 'RESTAURANT',
-    reservation: null,
-    guest: null,
-    room: null,
+    reservation: '',
+    guest: '',
+    room: '',
     items: [],
     paymentMethod: 'CASH',
     notes: ''
@@ -111,18 +108,12 @@ export default function POS() {
     }));
   };
 
-  const calculateTotals = (items = currentOrder.items) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const calculateTotals = () => {
+    const subtotal = currentOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * 0.05; // 5% tax
     const total = subtotal + tax;
     
     return { subtotal, tax, total };
-  };
-
-  const generateOrderNumber = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `ORD-${timestamp}${random}`;
   };
 
   const handleCreateOrder = async () => {
@@ -135,64 +126,27 @@ export default function POS() {
     try {
       const totals = calculateTotals();
       
-      // Prepare order data - only include fields that have values
       const orderData = {
-        type: currentOrder.type,
+        ...currentOrder,
+        ...totals,
+        status: 'PENDING',
+        paymentStatus: 'PENDING',
         items: currentOrder.items.map(item => ({
           product: item.product._id,
           quantity: item.quantity,
           price: item.price,
           notes: item.notes
-        })),
-        paymentMethod: currentOrder.paymentMethod,
-        notes: currentOrder.notes,
-        ...totals,
-        status: 'PENDING',
-        paymentStatus: 'PENDING',
-        orderNumber: generateOrderNumber() // Generate order number
+        }))
       };
 
-      // Only add reservation, guest, room if they have values
-      if (currentOrder.reservation) {
-        orderData.reservation = currentOrder.reservation;
-      }
-      if (currentOrder.guest) {
-        orderData.guest = currentOrder.guest;
-      }
-      if (currentOrder.room) {
-        orderData.room = currentOrder.room;
-      }
-
-      console.log('Sending order data:', orderData);
-
-      const response = await api.post('/orders', orderData);
-      const newOrder = response.data;
-      
-      // Show invoice for the new order
-      const reservation = currentOrder.reservation ? 
-        reservations.find(r => r._id === currentOrder.reservation) : null;
-      
-      setSelectedOrder({
-        ...newOrder,
-        invoiceNumber: `INV-${Date.now()}`,
-        orderNumber: newOrder.orderNumber,
-        createdAt: new Date(),
-        guestName: reservation ? 
-          `${reservation.guest?.firstName} ${reservation.guest?.lastName}` 
-          : 'Walk-in Customer',
-        roomNumber: reservation?.room?.number || null,
-        items: currentOrder.items,
-        paymentMethod: currentOrder.paymentMethod,
-        serviceType: currentOrder.type.replace('_', ' ')
-      });
-      setShowInvoice(true);
+      await api.post('/orders', orderData);
       
       // Reset order
       setCurrentOrder({
         type: 'RESTAURANT',
-        reservation: null,
-        guest: null,
-        room: null,
+        reservation: '',
+        guest: '',
+        room: '',
         items: [],
         paymentMethod: 'CASH',
         notes: ''
@@ -201,6 +155,7 @@ export default function POS() {
       // Refresh orders list
       await fetchTodayOrders();
       
+      alert('Order created successfully!');
     } catch (err) {
       console.error('Error creating order:', err);
       alert('Failed to create order. Please try again.');
@@ -232,23 +187,6 @@ export default function POS() {
       console.error('Error updating order status:', err);
       alert('Failed to update order status.');
     }
-  };
-
-  const handleGenerateInvoice = (order) => {
-    const reservation = order.reservation ? 
-      reservations.find(r => r._id === order.reservation) : null;
-    
-    setSelectedOrder({
-      ...order,
-      invoiceNumber: `INV-${order._id.slice(-6).toUpperCase()}`,
-      guestName: reservation ? 
-        `${reservation.guest?.firstName} ${reservation.guest?.lastName}` 
-        : 'Walk-in Customer',
-      roomNumber: reservation?.room?.number || null,
-      serviceType: order.type.replace('_', ' '),
-      paymentMethod: order.paymentMethod || 'CASH'
-    });
-    setShowInvoice(true);
   };
 
   const { subtotal, tax, total } = calculateTotals();
@@ -366,29 +304,19 @@ export default function POS() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Charge to Room (Optional)</label>
                   <select
-                    value={currentOrder.reservation || ''}
+                    value={currentOrder.reservation}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          reservation: null,
-                          guest: null,
-                          room: null
-                        }));
-                      } else {
-                        const reservation = reservations.find(r => r._id === value);
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          reservation: value,
-                          guest: reservation?.guest?._id || null,
-                          room: reservation?.room?._id || null
-                        }));
-                      }
+                      const reservation = reservations.find(r => r._id === e.target.value);
+                      setCurrentOrder(prev => ({
+                        ...prev,
+                        reservation: e.target.value,
+                        guest: reservation?.guest?._id || '',
+                        room: reservation?.room?._id || ''
+                      }));
                     }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary"
                   >
-                    <option value="">Select Room (Optional)</option>
+                    <option value="">Select Room</option>
                     {reservations.filter(r => r.status === 'CHECKED_IN').map(reservation => (
                       <option key={reservation._id} value={reservation._id}>
                         Room {reservation.room?.number} - {reservation.guest?.firstName}
@@ -465,7 +393,7 @@ export default function POS() {
                   disabled={loading || currentOrder.items.length === 0}
                   className="w-full bg-primary hover:bg-primaryDark text-white font-medium py-3 rounded-xl transition disabled:opacity-50"
                 >
-                  {loading ? 'Creating Order...' : 'Create Order & Generate Invoice'}
+                  {loading ? 'Creating Order...' : 'Create Order'}
                 </button>
                 
                 {currentOrder.items.length > 0 && (
@@ -543,12 +471,6 @@ export default function POS() {
 
                   {/* Actions */}
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    <button
-                      onClick={() => handleGenerateInvoice(order)}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition"
-                    >
-                      🧾 Generate Invoice
-                    </button>
                     {order.paymentStatus !== 'PAID' && (
                       <button
                         onClick={() => handleProcessPayment(order._id, 'CASH')}
@@ -560,7 +482,7 @@ export default function POS() {
                     {order.status !== 'COMPLETED' && (
                       <button
                         onClick={() => handleUpdateStatus(order._id, 'COMPLETED')}
-                        className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded-lg transition"
+                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition"
                       >
                         Complete
                       </button>
@@ -580,13 +502,6 @@ export default function POS() {
           )}
         </div>
       )}
-
-      {/* Invoice Modal */}
-      <InvoiceModal
-        order={selectedOrder}
-        isOpen={showInvoice}
-        onClose={() => setShowInvoice(false)}
-      />
     </div>
   );
 }

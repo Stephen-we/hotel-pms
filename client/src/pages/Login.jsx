@@ -26,7 +26,9 @@ export default function Login() {
       // Set default authorization header
       api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       
-      navigate('/');
+      // Force a page reload to trigger App.jsx auth check
+      window.location.href = '/';
+      
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

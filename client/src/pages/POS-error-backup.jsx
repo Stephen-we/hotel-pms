@@ -14,9 +14,9 @@ export default function POS() {
   // Current order state
   const [currentOrder, setCurrentOrder] = useState({
     type: 'RESTAURANT',
-    reservation: null,
-    guest: null,
-    room: null,
+    reservation: '',
+    guest: '',
+    room: '',
     items: [],
     paymentMethod: 'CASH',
     notes: ''
@@ -119,12 +119,6 @@ export default function POS() {
     return { subtotal, tax, total };
   };
 
-  const generateOrderNumber = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `ORD-${timestamp}${random}`;
-  };
-
   const handleCreateOrder = async () => {
     if (currentOrder.items.length === 0) {
       alert('Please add items to the order');
@@ -135,52 +129,34 @@ export default function POS() {
     try {
       const totals = calculateTotals();
       
-      // Prepare order data - only include fields that have values
       const orderData = {
-        type: currentOrder.type,
+        ...currentOrder,
+        ...totals,
+        status: 'PENDING',
+        paymentStatus: 'PENDING',
         items: currentOrder.items.map(item => ({
           product: item.product._id,
           quantity: item.quantity,
           price: item.price,
           notes: item.notes
-        })),
-        paymentMethod: currentOrder.paymentMethod,
-        notes: currentOrder.notes,
-        ...totals,
-        status: 'PENDING',
-        paymentStatus: 'PENDING',
-        orderNumber: generateOrderNumber() // Generate order number
+        }))
       };
-
-      // Only add reservation, guest, room if they have values
-      if (currentOrder.reservation) {
-        orderData.reservation = currentOrder.reservation;
-      }
-      if (currentOrder.guest) {
-        orderData.guest = currentOrder.guest;
-      }
-      if (currentOrder.room) {
-        orderData.room = currentOrder.room;
-      }
-
-      console.log('Sending order data:', orderData);
 
       const response = await api.post('/orders', orderData);
       const newOrder = response.data;
       
       // Show invoice for the new order
-      const reservation = currentOrder.reservation ? 
-        reservations.find(r => r._id === currentOrder.reservation) : null;
-      
       setSelectedOrder({
         ...newOrder,
         invoiceNumber: `INV-${Date.now()}`,
         orderNumber: newOrder.orderNumber,
         createdAt: new Date(),
-        guestName: reservation ? 
-          `${reservation.guest?.firstName} ${reservation.guest?.lastName}` 
+        guestName: currentOrder.guest ? 
+          `${reservations.find(r => r._id === currentOrder.reservation)?.guest?.firstName} ${reservations.find(r => r._id === currentOrder.reservation)?.guest?.lastName}` 
           : 'Walk-in Customer',
-        roomNumber: reservation?.room?.number || null,
+        roomNumber: currentOrder.room ? 
+          reservations.find(r => r._id === currentOrder.reservation)?.room?.number 
+          : null,
         items: currentOrder.items,
         paymentMethod: currentOrder.paymentMethod,
         serviceType: currentOrder.type.replace('_', ' ')
@@ -190,9 +166,9 @@ export default function POS() {
       // Reset order
       setCurrentOrder({
         type: 'RESTAURANT',
-        reservation: null,
-        guest: null,
-        room: null,
+        reservation: '',
+        guest: '',
+        room: '',
         items: [],
         paymentMethod: 'CASH',
         notes: ''
@@ -235,16 +211,14 @@ export default function POS() {
   };
 
   const handleGenerateInvoice = (order) => {
-    const reservation = order.reservation ? 
-      reservations.find(r => r._id === order.reservation) : null;
-    
+    const reservation = reservations.find(r => r._id === order.reservation);
     setSelectedOrder({
       ...order,
       invoiceNumber: `INV-${order._id.slice(-6).toUpperCase()}`,
       guestName: reservation ? 
         `${reservation.guest?.firstName} ${reservation.guest?.lastName}` 
         : 'Walk-in Customer',
-      roomNumber: reservation?.room?.number || null,
+      roomNumber: reservation?.room?.number,
       serviceType: order.type.replace('_', ' '),
       paymentMethod: order.paymentMethod || 'CASH'
     });
@@ -366,29 +340,19 @@ export default function POS() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Charge to Room (Optional)</label>
                   <select
-                    value={currentOrder.reservation || ''}
+                    value={currentOrder.reservation}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          reservation: null,
-                          guest: null,
-                          room: null
-                        }));
-                      } else {
-                        const reservation = reservations.find(r => r._id === value);
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          reservation: value,
-                          guest: reservation?.guest?._id || null,
-                          room: reservation?.room?._id || null
-                        }));
-                      }
+                      const reservation = reservations.find(r => r._id === e.target.value);
+                      setCurrentOrder(prev => ({
+                        ...prev,
+                        reservation: e.target.value,
+                        guest: reservation?.guest?._id || '',
+                        room: reservation?.room?._id || ''
+                      }));
                     }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary"
                   >
-                    <option value="">Select Room (Optional)</option>
+                    <option value="">Select Room</option>
                     {reservations.filter(r => r.status === 'CHECKED_IN').map(reservation => (
                       <option key={reservation._id} value={reservation._id}>
                         Room {reservation.room?.number} - {reservation.guest?.firstName}

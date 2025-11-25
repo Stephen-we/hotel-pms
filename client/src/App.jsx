@@ -39,7 +39,9 @@ export default function App() {
         // Verify token with server
         const response = await api.post('/auth/verify');
         setUser(response.data.user);
+        console.log("✅ User loaded:", response.data.user);
       } catch (err) {
+        console.error("❌ Auth verification failed:", err);
         // Token invalid, clear storage
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -55,6 +57,7 @@ export default function App() {
     localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
+    console.log("✅ User logged out");
   };
 
   if (loading) {
@@ -80,14 +83,14 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
-        <Route path="frontdesk" element={<FrontDesk />} />
-        <Route path="reservations" element={<Reservations />} />
-        <Route path="rooms" element={<Rooms />} />
-        <Route path="housekeeping" element={<Housekeeping />} />
-        <Route path="pos" element={<POS />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="settings" element={<Settings />} />
+        <Route index element={<Dashboard user={user} />} />
+        <Route path="frontdesk" element={<FrontDesk user={user} />} />
+        <Route path="reservations" element={<Reservations user={user} />} />
+        <Route path="rooms" element={<Rooms user={user} />} />
+        <Route path="housekeeping" element={<Housekeeping user={user} />} />
+        <Route path="pos" element={<POS user={user} />} />
+        <Route path="reports" element={<Reports user={user} />} />
+        <Route path="settings" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
