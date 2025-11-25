@@ -11,6 +11,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/auth", authRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

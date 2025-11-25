@@ -53,6 +53,19 @@ const userSchema = new mongoose.Schema(
     },
     lastLogin: { 
       type: Date 
+    },
+    permissions: [{
+      module: String,
+      canRead: { type: Boolean, default: false },
+      canWrite: { type: Boolean, default: false },
+      canDelete: { type: Boolean, default: false }
+    }],
+    profileImage: { 
+      type: String 
+    },
+    createdBy: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User" 
     }
   },
   { timestamps: true }
