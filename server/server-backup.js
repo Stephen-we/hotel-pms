@@ -12,23 +12,13 @@ import reportRoutes from "./routes/reportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
-import inventoryRoutes from "./routes/inventoryRoutes.js";
-import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: [
-    'https://hotel.stephenweb.space',
-    'https://api.stephenweb.space',
-    'http://localhost:5173'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Middleware
+app.use(cors());
 app.use(express.json());
 
 // Mongo connection
@@ -55,8 +45,6 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/purchase-orders", purchaseOrderRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;
