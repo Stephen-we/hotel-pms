@@ -12,6 +12,10 @@ import POS from "./pages/POS";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import api from "./services/api";
+import VerifyOtp from "./pages/auth/VerifyOtp";
+import AdminDevices from "./pages/admin/AdminDevices";
+import UserDevices from "./pages/profile/UserDevices";
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -92,7 +96,10 @@ export default function App() {
         <Route path="reports" element={<Reports user={user} />} />
         <Route path="settings" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
+        <Route path="/verify-otp" element={<VerifyOtp />} />
+        <Route path="/admin/devices" element={<AdminDevices />} />
+        <Route path="/profile/devices" element={<UserDevices />} />
+        </Route>
     </Routes>
   );
 }

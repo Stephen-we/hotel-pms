@@ -1,21 +1,7 @@
-import dotenv from "dotenv";
-dotenv.config();
 import express from "express";
+import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
-
-// Fix __dirname for ES Modules
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-
-console.log("📨 Using email transporter:",
-  process.env.EMAIL_HOST,
-  process.env.EMAIL_PORT
-);
 
 import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
@@ -29,33 +15,19 @@ import authRoutes from "./routes/authRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
 
-
+dotenv.config();
 
 const app = express();
 
-// Improved CORS for mobile and all origins
 app.use(cors({
   origin: [
     'https://hotel.stephenweb.space',
-    'https://api.hotel.stephenweb.space',
     'https://api.stephenweb.space',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://10.255.255.254:5173',
-    'http://172.27.245.41:5173',
-    'http://172.18.0.1:5173',
-    // Mobile and other origins
-    /\.stephenweb\.space$/, // All subdomains
-    'https://hotel-pms.pages.dev',
-    'http://192.168.*', // Local network
-    'http://10.*'       // Local network
+    'http://localhost:5173'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Device-ID', 'X-Real-IP', 'X-Forwarded-For'],
-  exposedHeaders: ['Authorization'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 

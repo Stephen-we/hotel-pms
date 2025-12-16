@@ -37,6 +37,7 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   verify: () => api.post('/auth/verify'),
   register: (userData) => api.post('/auth/register', userData),
+  verifyOtp: (data) => api.post("/auth/verify-otp", data),
 };
 
 // Inventory API

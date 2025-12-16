@@ -64,10 +64,11 @@ export default function Sidebar({ user }) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
+        
+        {/* Default menu items */}
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          
+
           return (
             <NavLink
               key={item.path}
@@ -85,6 +86,39 @@ export default function Sidebar({ user }) {
             </NavLink>
           );
         })}
+
+        {/* ADMIN ONLY — DEVICE MANAGEMENT */}
+        {user?.role === "SUPER_ADMIN" && (
+          <NavLink
+            to="/admin/devices"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition ${
+                isActive
+                  ? "bg-primary text-white shadow-lg shadow-primary/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              }`
+            }
+          >
+            <FiSettings className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Device Management</span>}
+          </NavLink>
+        )}
+
+        {/* ALL USERS — MY DEVICES */}
+        <NavLink
+          to="/profile/devices"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition ${
+              isActive
+                ? "bg-primary text-white shadow-lg shadow-primary/25"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            }`
+          }
+        >
+          <FiUsers className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span>My Devices</span>}
+        </NavLink>
+
       </nav>
 
       {/* User info at bottom */}
