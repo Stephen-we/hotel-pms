@@ -11,15 +11,16 @@ import Housekeeping from "./pages/Housekeeping";
 import POS from "./pages/POS";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
-import api from "./services/api";
+
 import VerifyOtp from "./pages/auth/VerifyOtp";
 import AdminDevices from "./pages/admin/AdminDevices";
 import UserDevices from "./pages/profile/UserDevices";
 
+import api from "./services/api";
 
-// Protected Route Component
+// 🔐 Protected Route
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" replace />;
 };
 
@@ -32,74 +33,69 @@ export default function App() {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem("token");
 
-    if (token && savedUser) {
+    if (token) {
       try {
-        // Set authorization header
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Verify token with server
-        const response = await api.post('/auth/verify');
-        setUser(response.data.user);
-        console.log("✅ User loaded:", response.data.user);
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        const res = await api.post("/auth/verify");
+        setUser(res.data.user);
+        console.log("✅ Auth verified:", res.data.user);
       } catch (err) {
-        console.error("❌ Auth verification failed:", err);
-        // Token invalid, clear storage
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        delete api.defaults.headers.common['Authorization'];
+        console.error("❌ Token invalid");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        delete api.defaults.headers.common["Authorization"];
       }
     }
-    
     setLoading(false);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
+    localStorage.clear();
+    delete api.defaults.headers.common["Authorization"];
     setUser(null);
-    console.log("✅ User logged out");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
+        Loading...
       </div>
     );
   }
 
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={!user ? <Login /> : <Navigate to="/" replace />} 
-      />
-      
-      <Route 
-        path="/" 
+
+      {/* 🌐 PUBLIC ROUTES */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+
+      {/* 🔐 PROTECTED ROUTES */}
+      <Route
+        path="/"
         element={
           <ProtectedRoute>
             <MainLayout user={user} logout={logout} />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard user={user} />} />
-        <Route path="frontdesk" element={<FrontDesk user={user} />} />
-        <Route path="reservations" element={<Reservations user={user} />} />
-        <Route path="rooms" element={<Rooms user={user} />} />
-        <Route path="housekeeping" element={<Housekeeping user={user} />} />
-        <Route path="pos" element={<POS user={user} />} />
-        <Route path="reports" element={<Reports user={user} />} />
-        <Route path="settings" element={<Settings user={user} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
-        <Route path="/admin/devices" element={<AdminDevices />} />
-        <Route path="/profile/devices" element={<UserDevices />} />
-        </Route>
+        <Route index element={<Dashboard />} />
+        <Route path="frontdesk" element={<FrontDesk />} />
+        <Route path="reservations" element={<Reservations />} />
+        <Route path="rooms" element={<Rooms />} />
+        <Route path="housekeeping" element={<Housekeeping />} />
+        <Route path="pos" element={<POS />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="admin/devices" element={<AdminDevices />} />
+        <Route path="profile/devices" element={<UserDevices />} />
+      </Route>
+
+      {/* ❌ FALLBACK */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+
     </Routes>
   );
 }

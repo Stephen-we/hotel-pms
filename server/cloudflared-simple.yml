@@ -1,0 +1,9 @@
+tunnel: 9b928fb8-36b6-45b7-a90c-ddf2950713af
+credentials-file: /root/.cloudflared/9b928fb8-36b6-45b7-a90c-ddf2950713af.json
+
+ingress:
+  - hostname: hotel.stephenweb.space
+    service: http://localhost:5173
+  - hostname: hotel-api.stephenweb.space
+    service: http://localhost:5000
+  - service: http_status:404

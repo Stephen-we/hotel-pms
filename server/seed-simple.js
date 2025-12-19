@@ -1,17 +1,21 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 import User from "./models/User.js";
 
-const seedUsers = async () => {
+dotenv.config();
+
+const MONGO_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/hotel_pms";
+
+async function seedUsers() {
   try {
-    await mongoose.connect("mongodb://127.0.0.1:27017/hotel_pms");
+    await mongoose.connect(MONGO_URI);
     console.log("✅ Connected to MongoDB");
 
-    // Clear existing users
     await User.deleteMany({});
-    console.log("✅ Cleared existing users");
+    console.log("🧹 Existing users cleared");
 
-    // Create default users
-    const defaultUsers = [
+    // ✅ Use User.create() so pre('save') runs and password becomes bcrypt hash
+    await User.create([
       {
         username: "admin",
         email: "admin@hotel.com",
@@ -20,7 +24,8 @@ const seedUsers = async () => {
         lastName: "Administrator",
         role: "SUPER_ADMIN",
         department: "MANAGEMENT",
-        isActive: true
+        isActive: true,
+        devices: [], // ✅ keep empty
       },
       {
         username: "manager",
@@ -30,7 +35,8 @@ const seedUsers = async () => {
         lastName: "Manager",
         role: "MANAGER",
         department: "MANAGEMENT",
-        isActive: true
+        isActive: true,
+        devices: [],
       },
       {
         username: "reception",
@@ -40,25 +46,21 @@ const seedUsers = async () => {
         lastName: "Desk",
         role: "RECEPTIONIST",
         department: "FRONT_DESK",
-        isActive: true
-      }
-    ];
+        isActive: true,
+        devices: [],
+      },
+    ]);
 
-    await User.insertMany(defaultUsers);
-    console.log("✅ Default users created successfully!");
-
-    // Verify
-    const users = await User.find();
-    console.log("\\n📋 Users in database:");
-    users.forEach(user => {
-      console.log(`- ${user.username} (${user.role}) - Active: ${user.isActive}`);
-    });
+    const users = await User.find({}, { username: 1, role: 1, isActive: 1 });
+    console.log("\n📋 Users seeded:");
+    users.forEach((u) => console.log(`- ${u.username} (${u.role}) Active:${u.isActive}`));
 
     await mongoose.connection.close();
-    console.log("\\n🎉 Users seeded successfully! You can now login.");
-  } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.log("\n🎉 Done. Now login from UI.");
+  } catch (err) {
+    console.error("❌ Seeding failed:", err.message);
+    process.exit(1);
   }
-};
+}
 
 seedUsers();

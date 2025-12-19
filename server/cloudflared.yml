@@ -1,0 +1,25 @@
+tunnel: 9b928fb8-36b6-45b7-a90c-ddf2950713af
+credentials-file: /root/.cloudflared/9b928fb8-36b6-45b7-a90c-ddf2950713af.json
+logfile: /var/log/cloudflared-hotel-pms.log
+loglevel: info
+
+ingress:
+  # Frontend - React Vite Dev Server
+  - hostname: hotel.stephenweb.space
+    service: http://localhost:5173
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: true
+      httpHostHeader: hotel.stephenweb.space
+
+  # Backend API
+  - hostname: api.hotel.stephenweb.space
+    service: http://localhost:5000
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: true
+      httpHostHeader: api.hotel.stephenweb.space
+      originServerName: localhost
+
+  # Catch-all rule
+  - service: http_status:404
